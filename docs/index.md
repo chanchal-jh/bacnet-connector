@@ -1,4 +1,4 @@
-## 1. Project Overview
+## Project Overview
 
 The **BACnet REST Gateway** is a production-ready protocol adapter that translates BACnet/IP (a building automation protocol used for HVAC, lighting, and sensor systems) into a simple REST API that any frontend or cloud application can consume.
 
