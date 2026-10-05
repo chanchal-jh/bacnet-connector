@@ -8,5 +8,5 @@ plugins:
 
 nav:
   - Contents:
-      - Project Overview: 'docs/index.md'
-      - Architecture: 'docs/arch.md'
+      - Project Overview: 'index.md'
+      - Architecture: 'arch.md'
