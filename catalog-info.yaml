@@ -1,0 +1,12 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bacnet-connector
+  description: BACnet connector application.
+  annotations:
+    github.com/project-slug: chanchal-jh/bacnet-connector
+    backstage.io/techdocs-ref: dir:.
+spec:
+  type: service
+  owner: development
+  lifecycle: experimental

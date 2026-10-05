@@ -1,0 +1,12 @@
+site_name: 'BACnet Connector'
+site_description: 'Main documentation for BACnet connector features and framework APIs'
+repo_url: https://github.com/chanchal-jh/bacnet-connector
+edit_uri: edit/master/docs
+
+plugins:
+  - techdocs-core
+
+nav:
+  - Contents:
+      - Project Overview: 'docs/index.md'
+      - Architecture: 'docs/arch.md'
