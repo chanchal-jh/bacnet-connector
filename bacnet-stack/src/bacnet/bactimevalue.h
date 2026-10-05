@@ -1,0 +1,169 @@
+/**
+ * @file
+ * @brief BACnet time-value encode and decode functions
+ * @author Nikola Jelic <nikola.jelic@euroicc.com>
+ * @author Steve Karg <skarg@users.sourceforge.net>
+ * @date 2015
+ * @copyright SPDX-License-Identifier: MIT
+ */
+#ifndef BACNET_TIME_VALUE_H_
+#define BACNET_TIME_VALUE_H_
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <stddef.h>
+/* BACnet Stack defines - first */
+#include "bacnet/bacdef.h"
+/* BACnet Stack API */
+#include "bacnet/bacint.h"
+#include "bacnet/datetime.h"
+
+/**
+ *  This structure holds 'Any' primitive datatype as configured.
+ *  {
+ *     value ABSTRACT-SYNTAX.&Type
+ *     -- any primitive datatype;
+ *     -- complex types cannot be decoded
+ *  }
+ *  Used in Schedule object Present_Value and Schedule_Default properties,
+ *  for BACnetSpecialEvent and BACnetDailySchedule datatype properties
+ *  containing BACnetTimeValues.
+ */
+typedef struct BACnet_Primitive_Data_Value {
+    uint8_t tag; /* application tag data type */
+    union {
+        /* NULL - not needed as it is encoded in the tag alone */
+        bool Boolean;
+        BACNET_UNSIGNED_INTEGER Unsigned_Int;
+#if BACNET_USE_SIGNED
+        int32_t Signed_Int;
+#endif
+        float Real;
+#if BACNET_USE_DOUBLE
+        double Double;
+#endif
+        uint32_t Enumerated;
+    } type;
+} BACNET_PRIMITIVE_DATA_VALUE;
+
+typedef struct BACnet_Time_Value {
+    BACNET_TIME Time;
+    BACNET_PRIMITIVE_DATA_VALUE Value;
+} BACNET_TIME_VALUE;
+
+#ifdef __cplusplus
+extern "C" {
+#endif /* __cplusplus */
+struct BACnet_Application_Data_Value;
+
+BACNET_STACK_EXPORT
+int bacnet_primitive_value_encode(
+    uint8_t *apdu, const BACNET_PRIMITIVE_DATA_VALUE *value);
+
+BACNET_STACK_EXPORT
+int bacnet_primitive_value_application_decode(
+    const uint8_t *apdu,
+    uint32_t apdu_size,
+    uint8_t tag_data_type,
+    uint32_t len_value_type,
+    BACNET_PRIMITIVE_DATA_VALUE *value);
+
+BACNET_STACK_EXPORT
+int bacnet_primitive_value_decode(
+    const uint8_t *apdu,
+    uint32_t apdu_size,
+    BACNET_PRIMITIVE_DATA_VALUE *value);
+
+BACNET_STACK_EXPORT
+bool bacnet_primitive_value_same(
+    const BACNET_PRIMITIVE_DATA_VALUE *value,
+    const BACNET_PRIMITIVE_DATA_VALUE *test_value);
+
+BACNET_STACK_EXPORT
+bool bacnet_primitive_value_copy(
+    BACNET_PRIMITIVE_DATA_VALUE *dest, const BACNET_PRIMITIVE_DATA_VALUE *src);
+
+BACNET_STACK_EXPORT
+int bacnet_time_value_encode(uint8_t *apdu, const BACNET_TIME_VALUE *value);
+
+BACNET_STACK_DEPRECATED("Use bacnet_time_value_encode() instead")
+BACNET_STACK_EXPORT
+int bacapp_encode_time_value(uint8_t *apdu, const BACNET_TIME_VALUE *value);
+
+BACNET_STACK_EXPORT
+int bacnet_time_value_context_encode(
+    uint8_t *apdu, uint8_t tag_number, const BACNET_TIME_VALUE *value);
+
+BACNET_STACK_DEPRECATED("Use bacnet_time_value_context_encode() instead")
+BACNET_STACK_EXPORT
+int bacapp_encode_context_time_value(
+    uint8_t *apdu, uint8_t tag_number, const BACNET_TIME_VALUE *value);
+
+BACNET_STACK_DEPRECATED("Use bacnet_time_value_decode() instead")
+BACNET_STACK_EXPORT
+int bacapp_decode_time_value(const uint8_t *apdu, BACNET_TIME_VALUE *value);
+
+BACNET_STACK_EXPORT
+int bacnet_time_value_decode(
+    const uint8_t *apdu, int max_apdu_len, BACNET_TIME_VALUE *value);
+
+BACNET_STACK_DEPRECATED("Use bacnet_time_value_context_decode() instead")
+BACNET_STACK_EXPORT
+int bacapp_decode_context_time_value(
+    const uint8_t *apdu, uint8_t tag_number, BACNET_TIME_VALUE *value);
+
+BACNET_STACK_EXPORT
+int bacnet_time_value_context_decode(
+    const uint8_t *apdu,
+    int max_apdu_len,
+    uint8_t tag_number,
+    BACNET_TIME_VALUE *value);
+
+/**
+ * Decode array of time-values wrapped in a context tag
+ * @param apdu
+ * @param max_apdu_len
+ * @param tag_number - number expected in the context tag; 0 used for
+ * DailySchedule
+ * @param time_values
+ * @param max_time_values - number of time values to encode
+ * @param[out] out_count - actual number of time values found
+ * @return used bytes, <0 if decoding failed
+ */
+BACNET_STACK_EXPORT
+int bacnet_time_values_context_decode(
+    const uint8_t *apdu,
+    int max_apdu_len,
+    uint8_t tag_number,
+    BACNET_TIME_VALUE *time_values,
+    unsigned int max_time_values,
+    unsigned int *out_count);
+
+/**
+ * Encode array of time-values wrapped in a context tag
+ * @param apdu - output buffer, NULL to just measure length
+ * @param max_apdu_len
+ * @param tag_number - number to use for the context tag; 0 used for
+ * DailySchedule
+ * @param time_values
+ * @param max_time_values - number of time values to encode
+ * @return used bytes, <=0 if encoding failed
+ */
+BACNET_STACK_EXPORT
+int bacnet_time_values_context_encode(
+    uint8_t *apdu,
+    uint8_t tag_number,
+    const BACNET_TIME_VALUE *time_values,
+    unsigned int max_time_values);
+
+BACNET_STACK_EXPORT
+bool bacnet_time_value_same(
+    const BACNET_TIME_VALUE *a, const BACNET_TIME_VALUE *b);
+BACNET_STACK_EXPORT
+void bacnet_time_value_copy(
+    BACNET_TIME_VALUE *dest, const BACNET_TIME_VALUE *src);
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
+#endif /* _BAC_TIME_VALUE_H_ */

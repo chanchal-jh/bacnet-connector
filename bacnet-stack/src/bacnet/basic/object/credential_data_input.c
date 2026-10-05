@@ -1,0 +1,447 @@
+/**
+ * @file
+ * @author Nikola Jelic <nikola.jelic@euroicc.com>
+ * @date 2015
+ * @brief Credential Data Input Objects - customize for your use
+ * @copyright SPDX-License-Identifier: MIT
+ */
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+/* BACnet Stack defines - first */
+#include "bacnet/bacdef.h"
+/* BACnet Stack API */
+#include "bacnet/bacdcode.h"
+#include "bacnet/bacapp.h"
+#include "bacnet/wp.h"
+#include "bacnet/basic/services.h"
+/* BACnet Stack Objects */
+#include "bacnet/basic/object/device.h"
+/* me! */
+#include "bacnet/basic/object/credential_data_input.h"
+
+static bool Credential_Data_Input_Initialized = false;
+
+static CREDENTIAL_DATA_INPUT_DESCR cdi_descrs[MAX_NUM_DEVICES]
+                                             [MAX_CREDENTIAL_DATA_INPUTS];
+#ifdef BAC_ROUTING
+#define cdi_descr (cdi_descrs[Routed_Device_Object_Index()])
+#else
+#define cdi_descr (cdi_descrs[0])
+#endif
+
+/* These three arrays are used by the ReadPropertyMultiple handler */
+static const int32_t Properties_Required[] = {
+    /* unordered list of required properties */
+    PROP_OBJECT_IDENTIFIER, PROP_OBJECT_NAME,
+    PROP_OBJECT_TYPE,       PROP_PRESENT_VALUE,
+    PROP_STATUS_FLAGS,      PROP_RELIABILITY,
+    PROP_OUT_OF_SERVICE,    PROP_SUPPORTED_FORMATS,
+    PROP_UPDATE_TIME,       -1
+};
+
+static const int32_t Properties_Optional[] = { -1 };
+
+static const int32_t Properties_Proprietary[] = { -1 };
+
+/* Every object shall have a Writable Property_List property
+   which is a BACnetARRAY of property identifiers,
+   one property identifier for each property within this object
+   that is always writable.  */
+static const int32_t Writable_Properties[] = {
+    /* unordered list of always writable properties */
+    PROP_PRESENT_VALUE, PROP_RELIABILITY, -1
+};
+
+/**
+ * @brief Returns the list of required, optional, and proprietary properties.
+ * Used by ReadPropertyMultiple service.
+ * @param pRequired - pointer to list of int terminated by -1, of
+ * BACnet required properties for this object.
+ * @param pOptional - pointer to list of int terminated by -1, of
+ * BACnet optional properties for this object.
+ * @param pProprietary - pointer to list of int terminated by -1, of
+ * BACnet proprietary properties for this object.
+ */
+void Credential_Data_Input_Property_Lists(
+    const int32_t **pRequired,
+    const int32_t **pOptional,
+    const int32_t **pProprietary)
+{
+    if (pRequired) {
+        *pRequired = Properties_Required;
+    }
+    if (pOptional) {
+        *pOptional = Properties_Optional;
+    }
+    if (pProprietary) {
+        *pProprietary = Properties_Proprietary;
+    }
+
+    return;
+}
+
+/**
+ * @brief Get list of writable properties for an Credential Data Input object
+ * @param  object_instance - object-instance number of the object
+ * @param  properties - Pointer to the pointer of writable properties.
+ */
+void Credential_Data_Input_Writable_Property_List(
+    uint32_t object_instance, const int32_t **properties)
+{
+    (void)object_instance;
+    if (properties) {
+        *properties = Writable_Properties;
+    }
+}
+
+/**
+ * @brief Initialize the Credential Data Input object data structures.
+ */
+void Credential_Data_Input_Init(void)
+{
+    uint16_t dev_id;
+    unsigned i;
+#ifdef BAC_ROUTING
+    uint16_t current_dev_id = Routed_Device_Object_Index();
+#endif
+
+    if (!Credential_Data_Input_Initialized) {
+        Credential_Data_Input_Initialized = true;
+
+        for (dev_id = 0; dev_id < MAX_NUM_DEVICES; dev_id++) {
+#ifdef BAC_ROUTING
+            Set_Routed_Device_Object_Index(dev_id);
+#endif
+            for (i = 0; i < MAX_CREDENTIAL_DATA_INPUTS; i++) {
+                /* there should be a meaningful setup for present value */
+                cdi_descr[i].present_value.format_type =
+                    AUTHENTICATION_FACTOR_UNDEFINED;
+                cdi_descr[i].present_value.format_class = 0;
+                octetstring_init(&cdi_descr[i].present_value.value, NULL, 0);
+                cdi_descr[i].reliability = RELIABILITY_NO_FAULT_DETECTED;
+                cdi_descr[i].out_of_service = false;
+                /* set supported formats */
+                cdi_descr[i].supported_formats_count = 0;
+                /* timestamp uninitialized */
+            }
+        }
+    }
+
+#ifdef BAC_ROUTING
+    Set_Routed_Device_Object_Index(current_dev_id);
+#endif
+    return;
+}
+
+/**
+ * @brief Check if the given object instance is valid.
+ * @param object_instance - object-instance number of the object
+ * @return true if the instance is valid, false otherwise
+ */
+bool Credential_Data_Input_Valid_Instance(uint32_t object_instance)
+{
+    if (object_instance < MAX_CREDENTIAL_DATA_INPUTS) {
+        return true;
+    }
+
+    return false;
+}
+
+/**
+ * @brief Get the total count of Credential Data Input objects.
+ * @return The count of Credential Data Input objects.
+ */
+unsigned Credential_Data_Input_Count(void)
+{
+    return MAX_CREDENTIAL_DATA_INPUTS;
+}
+
+/**
+ * @brief Convert an object instance number to an index in the object array.
+ * @param object_instance - object-instance number of the object
+ * @return The index corresponding to the given object instance, or
+ * MAX_CREDENTIAL_DATA_INPUTS if the instance is invalid.
+ */
+uint32_t Credential_Data_Input_Index_To_Instance(unsigned index)
+{
+    return index;
+}
+
+/**
+ * @brief Convert an object instance number to an index in the object array.
+ * @param object_instance - object-instance number of the object
+ * @return The index corresponding to the given object instance, or
+ * MAX_CREDENTIAL_DATA_INPUTS if the instance is invalid.
+ */
+unsigned Credential_Data_Input_Instance_To_Index(uint32_t object_instance)
+{
+    unsigned index = MAX_CREDENTIAL_DATA_INPUTS;
+
+    if (object_instance < MAX_CREDENTIAL_DATA_INPUTS) {
+        index = object_instance;
+    }
+
+    return index;
+}
+
+/**
+ * @brief Get the object name for a given Credential Data Input object instance.
+ * @param object_instance - object-instance number of the object
+ * @param object_name - pointer to a BACNET_CHARACTER_STRING to receive the
+ * object name
+ * @return true if the object name was successfully retrieved, false otherwise
+ */
+bool Credential_Data_Input_Object_Name(
+    uint32_t object_instance, BACNET_CHARACTER_STRING *object_name)
+{
+    char text[32] = "";
+    bool status = false;
+
+    if (object_instance < MAX_CREDENTIAL_DATA_INPUTS) {
+        snprintf(
+            text, sizeof(text), "CREDENTIAL DATA INPUT %lu",
+            (unsigned long)object_instance);
+        status = characterstring_init_ansi(object_name, text);
+    }
+
+    return status;
+}
+
+/**
+ * @brief Check if the Credential Data Input object instance is out of service.
+ * @param object_instance - object-instance number of the object
+ * @return true if the object instance is out of service, false otherwise
+ */
+bool Credential_Data_Input_Out_Of_Service(uint32_t instance)
+{
+    unsigned index = 0;
+    bool oos_flag = false;
+
+    index = Credential_Data_Input_Instance_To_Index(instance);
+    if (index < MAX_CREDENTIAL_DATA_INPUTS) {
+        oos_flag = cdi_descr[index].out_of_service;
+    }
+
+    return oos_flag;
+}
+
+/**
+ * @brief Set the out of service flag for a given Credential Data Input object
+ * instance.
+ * @param instance - object-instance number of the object
+ * @param oos_flag - true to set the object instance as out of service, false to
+ * set it as in service
+ */
+void Credential_Data_Input_Out_Of_Service_Set(uint32_t instance, bool oos_flag)
+{
+    unsigned index = 0;
+
+    index = Credential_Data_Input_Instance_To_Index(instance);
+    if (index < MAX_CREDENTIAL_DATA_INPUTS) {
+        cdi_descr[index].out_of_service = oos_flag;
+    }
+}
+
+/**
+ * @brief Encode a BACnetARRAY property element
+ * @param object_instance [in] BACnet network port object instance number
+ * @param index [in] array index requested:
+ *    0 to N for individual array members
+ * @param apdu [out] Buffer in which the APDU contents are built, or NULL to
+ * return the length of buffer if it had been built
+ * @return The length of the apdu encoded or
+ *   BACNET_STATUS_ERROR for ERROR_CODE_INVALID_ARRAY_INDEX
+ */
+static int Credential_Data_Input_Supported_Formats_Array_Encode(
+    uint32_t object_instance, BACNET_ARRAY_INDEX array_index, uint8_t *apdu)
+{
+    int apdu_len = BACNET_STATUS_ERROR;
+    unsigned index = 0;
+
+    index = Credential_Data_Input_Instance_To_Index(object_instance);
+    if (index < MAX_CREDENTIAL_DATA_INPUTS) {
+        if (array_index < cdi_descr[index].supported_formats_count) {
+            apdu_len = bacapp_encode_authentication_factor_format(
+                apdu, &cdi_descr[index].supported_formats[array_index]);
+        }
+    }
+
+    return apdu_len;
+}
+
+/**
+ * @brief Read a property value for a given Credential Data Input object
+ * instance.
+ * @param rpdata - pointer to a BACNET_READ_PROPERTY_DATA structure containing
+ * the read request data
+ * @return The number of bytes encoded in the response, or BACNET_STATUS_ERROR
+ * on error.
+ */
+int Credential_Data_Input_Read_Property(BACNET_READ_PROPERTY_DATA *rpdata)
+{
+    int apdu_size = 0;
+    int apdu_len = 0; /* return value */
+    BACNET_BIT_STRING bit_string;
+    BACNET_CHARACTER_STRING char_string;
+    unsigned object_index = 0;
+    bool state = false;
+    uint8_t *apdu = NULL;
+
+    if ((rpdata == NULL) || (rpdata->application_data == NULL) ||
+        (rpdata->application_data_len == 0)) {
+        return 0;
+    }
+    apdu = rpdata->application_data;
+    apdu_size = rpdata->application_data_len;
+    object_index =
+        Credential_Data_Input_Instance_To_Index(rpdata->object_instance);
+    switch (rpdata->object_property) {
+        case PROP_OBJECT_IDENTIFIER:
+            apdu_len = encode_application_object_id(
+                &apdu[0], OBJECT_CREDENTIAL_DATA_INPUT,
+                rpdata->object_instance);
+            break;
+        case PROP_OBJECT_NAME:
+            Credential_Data_Input_Object_Name(
+                rpdata->object_instance, &char_string);
+            apdu_len =
+                encode_application_character_string(&apdu[0], &char_string);
+            break;
+        case PROP_OBJECT_TYPE:
+            apdu_len = encode_application_enumerated(
+                &apdu[0], OBJECT_CREDENTIAL_DATA_INPUT);
+            break;
+        case PROP_PRESENT_VALUE:
+            apdu_len = bacapp_encode_authentication_factor(
+                &apdu[apdu_len], &cdi_descr[object_index].present_value);
+            break;
+        case PROP_STATUS_FLAGS:
+            bitstring_init(&bit_string);
+            bitstring_set_bit(&bit_string, STATUS_FLAG_IN_ALARM, false);
+            bitstring_set_bit(&bit_string, STATUS_FLAG_FAULT, false);
+            bitstring_set_bit(&bit_string, STATUS_FLAG_OVERRIDDEN, false);
+            state =
+                Credential_Data_Input_Out_Of_Service(rpdata->object_instance);
+            bitstring_set_bit(&bit_string, STATUS_FLAG_OUT_OF_SERVICE, state);
+            apdu_len = encode_application_bitstring(&apdu[0], &bit_string);
+            break;
+        case PROP_RELIABILITY:
+            apdu_len = encode_application_enumerated(
+                &apdu[0], cdi_descr[object_index].reliability);
+            break;
+        case PROP_OUT_OF_SERVICE:
+            state =
+                Credential_Data_Input_Out_Of_Service(rpdata->object_instance);
+            apdu_len = encode_application_boolean(&apdu[0], state);
+            break;
+        case PROP_SUPPORTED_FORMATS:
+            /* BACnetARRAY */
+            apdu_len = bacnet_array_encode(
+                rpdata->object_instance, rpdata->array_index,
+                Credential_Data_Input_Supported_Formats_Array_Encode,
+                cdi_descr[object_index].supported_formats_count, apdu,
+                apdu_size);
+            if (apdu_len == BACNET_STATUS_ABORT) {
+                rpdata->error_code =
+                    ERROR_CODE_ABORT_SEGMENTATION_NOT_SUPPORTED;
+            } else if (apdu_len == BACNET_STATUS_ERROR) {
+                rpdata->error_class = ERROR_CLASS_PROPERTY;
+                rpdata->error_code = ERROR_CODE_INVALID_ARRAY_INDEX;
+            }
+            break;
+        case PROP_UPDATE_TIME:
+            apdu_len = bacapp_encode_timestamp(
+                &apdu[0], &cdi_descr[object_index].timestamp);
+            break;
+        default:
+            rpdata->error_class = ERROR_CLASS_PROPERTY;
+            rpdata->error_code = ERROR_CODE_UNKNOWN_PROPERTY;
+            apdu_len = BACNET_STATUS_ERROR;
+            break;
+    }
+
+    return apdu_len;
+}
+
+/**
+ * @brief Write a property value for a given Credential Data Input object
+ * instance.
+ * @param wp_data - pointer to a BACNET_WRITE_PROPERTY_DATA structure containing
+ * the write request data
+ * @return true if the property was successfully written, false otherwise
+ */
+bool Credential_Data_Input_Write_Property(BACNET_WRITE_PROPERTY_DATA *wp_data)
+{
+    bool status = false; /* return value */
+    int len = 0;
+    BACNET_APPLICATION_DATA_VALUE value = { 0 };
+    unsigned object_index = 0;
+
+    /* Valid data? */
+    if (wp_data == NULL) {
+        return false;
+    }
+    /* decode the some of the request */
+    len = bacapp_decode_application_data(
+        wp_data->application_data, wp_data->application_data_len, &value);
+    /* FIXME: len < application_data_len: more data? */
+    if (len < 0) {
+        /* error while decoding - a value larger than we can handle */
+        wp_data->error_class = ERROR_CLASS_PROPERTY;
+        wp_data->error_code = ERROR_CODE_VALUE_OUT_OF_RANGE;
+        return false;
+    }
+    object_index =
+        Credential_Data_Input_Instance_To_Index(wp_data->object_instance);
+    switch (wp_data->object_property) {
+        case PROP_PRESENT_VALUE:
+            if (Credential_Data_Input_Out_Of_Service(
+                    wp_data->object_instance)) {
+                BACNET_AUTHENTICATION_FACTOR tmp;
+                len = bacnet_authentication_factor_decode(
+                    wp_data->application_data, wp_data->application_data_len,
+                    &tmp);
+                if (len > 0) {
+                    memcpy(
+                        &cdi_descr[object_index].present_value, &tmp,
+                        sizeof(BACNET_AUTHENTICATION_FACTOR));
+                } else {
+                    wp_data->error_class = ERROR_CLASS_PROPERTY;
+                    wp_data->error_code = ERROR_CODE_INVALID_DATA_TYPE;
+                }
+            } else {
+                wp_data->error_class = ERROR_CLASS_PROPERTY;
+                wp_data->error_code = ERROR_CODE_WRITE_ACCESS_DENIED;
+            }
+            break;
+        case PROP_RELIABILITY:
+            if (Credential_Data_Input_Out_Of_Service(
+                    wp_data->object_instance)) {
+                status = write_property_type_valid(
+                    wp_data, &value, BACNET_APPLICATION_TAG_ENUMERATED);
+                if (status) {
+                    cdi_descr[object_index].reliability =
+                        (BACNET_RELIABILITY)value.type.Enumerated;
+                }
+            } else {
+                wp_data->error_class = ERROR_CLASS_PROPERTY;
+                wp_data->error_code = ERROR_CODE_WRITE_ACCESS_DENIED;
+            }
+            break;
+        default:
+            if (property_lists_member(
+                    Properties_Required, Properties_Optional,
+                    Properties_Proprietary, wp_data->object_property)) {
+                wp_data->error_class = ERROR_CLASS_PROPERTY;
+                wp_data->error_code = ERROR_CODE_WRITE_ACCESS_DENIED;
+            } else {
+                wp_data->error_class = ERROR_CLASS_PROPERTY;
+                wp_data->error_code = ERROR_CODE_UNKNOWN_PROPERTY;
+            }
+            break;
+    }
+
+    return status;
+}

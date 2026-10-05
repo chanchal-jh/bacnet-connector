@@ -1,0 +1,12 @@
+# Ignore the compiled Go binary
+bacnet-api
+
+# Ignore the compiled C daemon build folder
+bacnetd/build/
+
+# Ignore VSCode personal settings
+.vscode/
+
+# Ignore local environment config (contains machine-specific values)
+# Use .env.example as a template instead
+.env

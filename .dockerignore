@@ -1,0 +1,17 @@
+# Git folders
+.git
+.gitignore
+.gitmodules
+
+# IDE settings
+.vscode
+.idea
+
+# Build outputs
+bacnetd/build/
+bacnet-api
+*.sock
+
+# Test / Scratch files
+scratch/
+
